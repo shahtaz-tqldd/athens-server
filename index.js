@@ -22,6 +22,11 @@ async function run() {
             const result = await postCollection.find({}).toArray()
             res.send(result)
         })
+        app.post('/posts', async (req, res) => {
+            const post = req.body
+            const result = await postCollection.insertOne(post)
+            res.send(result)
+        })
 
     } finally { }
 }
