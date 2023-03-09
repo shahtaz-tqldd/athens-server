@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require("express")
 const cors = require("cors")
 const app = express()
@@ -19,12 +19,32 @@ async function run() {
 
         //posts ===========================
         app.get('/posts', async (req, res) => {
-            const result = await postCollection.find({}).toArray()
+            const result = await postCollection.find({}).sort({ createdAt: -1 }).toArray()
             res.send(result)
         })
         app.post('/posts', async (req, res) => {
             const post = req.body
             const result = await postCollection.insertOne(post)
+            res.send(result)
+        })
+        app.get('/posts/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const result = await postCollection.findOne(filter)
+            res.send(result)
+        })
+        app.delete('/posts/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const result = await postCollection.deleteOne(filter)
+            res.send(result)
+        })
+
+        //myposts========
+        app.get('/my-posts', async (req, res) => {
+            const email = req.query.email
+            const filter = { authorEmail: email }
+            const result = await postCollection.find(filter).sort({ createdAt: -1 }).toArray()
             res.send(result)
         })
 
