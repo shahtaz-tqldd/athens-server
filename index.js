@@ -39,8 +39,22 @@ async function run() {
             const result = await postCollection.deleteOne(filter)
             res.send(result)
         })
+        app.put('/posts/:id', async (req, res) => {
+            const id = req.params.id
+            const post = req.body
+            const { title, content, updatedAt } = post
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true }
+            const updatedDoc = {
+                $set: {
+                    title, content, updatedAt
+                }
+            }
+            const result = await postCollection.updateOne(filter, updatedDoc, options)
+            res.send(result)
+        })
 
-        //myposts========
+        //MY POST
         app.get('/my-posts', async (req, res) => {
             const email = req.query.email
             const filter = { authorEmail: email }
