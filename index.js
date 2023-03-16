@@ -16,8 +16,9 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 async function run() {
     try {
         const postCollection = client.db('athens').collection('posts')
+        const savedPostsCollection = client.db('athens').collection('savedPosts')
 
-        //posts ===========================
+        //POSTS ===========================
         app.get('/posts', async (req, res) => {
             const result = await postCollection.find({}).sort({ createdAt: -1 }).toArray()
             res.send(result)
@@ -61,6 +62,44 @@ async function run() {
             const result = await postCollection.find(filter).sort({ createdAt: -1 }).toArray()
             res.send(result)
         })
+
+        // SAVE POST
+        app.post('/saved-posts/:id', async (req, res) => {
+            const saved = req.body
+            const { postId, savedBy } = saved
+            const filter = { postId, savedBy }
+            const exist = await savedPostsCollection.findOne(filter)
+            if (!exist) {
+                const result = await savedPostsCollection.insertOne(saved)
+                res.send(result)
+            }
+        })
+        app.get('/saved-posts/:email', async (req, res) => {
+            const savedBy = req.params.email
+            const filter = { savedBy }
+            const savedPosts = await savedPostsCollection.find(filter).toArray()
+
+            const posts = []
+            for (const savedPost of savedPosts) {
+                const postId = savedPost.postId
+                const filter = { _id: new ObjectId(postId) }
+                const post = await postCollection.findOne(filter)
+                if (post) {
+                    posts.push(post)
+                }
+            }
+
+            res.send(posts)
+        })
+
+        app.delete('/saved-posts', async (req, res) => {
+            const query = req.query
+            const { postId, email } = query
+            const filter = { postId, savedBy: email }
+            const result = await savedPostsCollection.deleteOne(filter)
+            res.send(result)
+        })
+
 
     } finally { }
 }
