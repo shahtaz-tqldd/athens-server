@@ -17,6 +17,7 @@ async function run() {
     try {
         const postCollection = client.db('athens').collection('posts')
         const savedPostsCollection = client.db('athens').collection('savedPosts')
+        const opinionsCollection = client.db('athens').collection('opinions')
 
         //POSTS ===========================
         app.get('/posts', async (req, res) => {
@@ -59,7 +60,7 @@ async function run() {
         app.get('/my-posts', async (req, res) => {
             const email = req.query.email
             const filter = { authorEmail: email }
-            const result = await postCollection.find(filter).sort({ createdAt: -1 }).toArray()
+            const result = await postCollection.find(filter).sort({ savedAt: -1 }).toArray()
             res.send(result)
         })
 
@@ -99,6 +100,42 @@ async function run() {
             const result = await savedPostsCollection.deleteOne(filter)
             res.send(result)
         })
+
+        // OPINION
+        app.post('/opinion/:id', async (req, res) => {
+            // const id = req.params.id
+            const opinion = req.body
+            const result = await opinionsCollection.insertOne(opinion)
+            res.send(result)
+        })
+        app.get('/opinion/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { postId: id }
+            const result = await opinionsCollection.find(filter).sort({ opinionAt: -1 }).toArray()
+            res.send(result)
+        })
+        app.delete('/opinion/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const result = await opinionsCollection.deleteOne(filter)
+            res.send(result)
+        })
+        app.put('/opinion/:id', async (req, res) => {
+            const id = req.params.id
+            const updated = req.body
+            const { updatedOpinion, updatedAt } = updated
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true }
+            const updatedDoc = {
+                $set: {
+                    opinion: updatedOpinion,
+                    updatedAt
+                }
+            }
+            const result = await opinionsCollection.updateOne(filter, updatedDoc, options)
+            res.send(result)
+        })
+
 
 
     } finally { }
