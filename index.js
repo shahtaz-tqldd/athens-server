@@ -93,7 +93,7 @@ async function run() {
             const savedBy = req.params.email
             const filter = {};
             const posts = await postCollection.find(filter).toArray()
-            
+
             const savedPosts = []
             for (const post of posts) {
                 if (post?.saves?.includes(savedBy)) {
@@ -164,6 +164,16 @@ async function run() {
                 res.status(500).json({ message: 'Server error' });
             }
         });
+
+        // SEARCH POST
+        app.get('/search/posts', async (req, res) => {
+            const searchKey = req.query.search
+            const posts = await postCollection.find({}).toArray()
+            if (searchKey) {
+                const result = posts.filter(post=>(post.title?.toLowerCase().includes(searchKey.toLowerCase())) || (post.content?.toLowerCase().includes(searchKey.toLowerCase())))
+                res.send(result)
+            }
+        })
 
     } finally { }
 }
