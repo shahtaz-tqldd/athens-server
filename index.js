@@ -16,7 +16,6 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 async function run() {
     try {
         const postCollection = client.db('athens').collection('posts')
-        const savedPostsCollection = client.db('athens').collection('savedPosts')
         const opinionsCollection = client.db('athens').collection('opinions')
 
         //POSTS ===========================
@@ -56,7 +55,7 @@ async function run() {
             res.send(result)
         })
 
-        //MY POST
+        //MY WRITE UP
         app.get('/my-posts', async (req, res) => {
             const email = req.query.email
             const filter = { authorEmail: email }
@@ -65,40 +64,43 @@ async function run() {
         })
 
         // SAVE POST
-        app.post('/saved-posts/:id', async (req, res) => {
-            const saved = req.body
-            const { postId, savedBy } = saved
-            const filter = { postId, savedBy }
-            const exist = await savedPostsCollection.findOne(filter)
-            if (!exist) {
-                const result = await savedPostsCollection.insertOne(saved)
-                res.send(result)
+        app.post('/posts/:id/save', async (req, res) => {
+            const id = req.params.id;
+            const userId = req.body.userId;
+            const filter = { _id: new ObjectId(id) };
+
+            try {
+                const post = await postCollection.findOne(filter);
+
+                if (!post) {
+                    return res.status(404).json({ message: 'Post not found' });
+                }
+
+                if (post?.saves?.includes(userId)) {
+                    await postCollection.updateOne(filter, { $pull: { saves: userId } });
+                    res.json({ message: 'Saved post removed' });
+                }
+                else {
+                    await postCollection.updateOne(filter, { $push: { saves: userId } });
+                    res.json({ message: 'Post is Saved' });
+                }
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ message: 'Server error' });
             }
         })
-        app.get('/saved-posts/:email', async (req, res) => {
+        app.get('/posts/save/:email', async (req, res) => {
             const savedBy = req.params.email
-            const filter = { savedBy }
-            const savedPosts = await savedPostsCollection.find(filter).toArray()
-
-            const posts = []
-            for (const savedPost of savedPosts) {
-                const postId = savedPost.postId
-                const filter = { _id: new ObjectId(postId) }
-                const post = await postCollection.findOne(filter)
-                if (post) {
-                    posts.push(post)
+            const filter = {};
+            const posts = await postCollection.find(filter).toArray()
+            
+            const savedPosts = []
+            for (const post of posts) {
+                if (post?.saves?.includes(savedBy)) {
+                    savedPosts.push(post)
                 }
             }
-
-            res.send(posts)
-        })
-
-        app.delete('/saved-posts', async (req, res) => {
-            const query = req.query
-            const { postId, email } = query
-            const filter = { postId, savedBy: email }
-            const result = await savedPostsCollection.deleteOne(filter)
-            res.send(result)
+            res.send(savedPosts)
         })
 
         // OPINION
@@ -136,12 +138,36 @@ async function run() {
             res.send(result)
         })
 
+        // AGREE TO THE POST
+        app.post('/posts/:id/agree', async (req, res) => {
+            const id = req.params.id;
+            const userId = req.body.userId;
+            const filter = { _id: new ObjectId(id) };
 
+            try {
+                const post = await postCollection.findOne(filter);
+
+                if (!post) {
+                    return res.status(404).json({ message: 'Post not found' });
+                }
+                if (!post?.agrees?.includes(userId)) {
+                    await postCollection.updateOne(filter, { $push: { agrees: userId } });
+                    res.json({ message: 'Agreed to the post' });
+                }
+
+                else {
+                    await postCollection.updateOne(filter, { $pull: { agrees: userId } });
+                    res.json({ message: 'Agree removed' });
+                }
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ message: 'Server error' });
+            }
+        });
 
     } finally { }
 }
 run().catch(err => console.error(err))
-
 
 app.get('/', (req, res) => {
     res.send("Athens server is running...")
